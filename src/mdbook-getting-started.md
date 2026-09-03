@@ -164,13 +164,11 @@ extra-watch-dirs = ["exercises"]
 
 Fenced code blocks with a `rust` (or `rs`) language tag get Rust-aware syntax highlighting automatically — no config needed:
 
-````markdown
 ```rust
 fn main() {
     println!("Hello, world!");
 }
 ```
-````
 
 Beyond highlighting, mdBook has several Rust-specific behaviors baked in that are directly relevant to Rustlings-style content:
 
@@ -217,6 +215,14 @@ println!("{}", x + y);
 # }
 ```
 ````
+
+```rust
+# fn main() {
+let x = 5;
+let y = 6;
+println!("{}", x + y);
+# }
+```
 
 Readers see only the two middle lines by default, with a small eye icon to reveal the hidden lines on demand.
 
