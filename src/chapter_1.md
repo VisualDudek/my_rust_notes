@@ -85,6 +85,67 @@ v.iter_mut().for_each(|x| *x *= 2);
 - zwróć uwage na `iter()` vs. `iter_mut()` oraz brak konieczności dereferencji.
 
 </details>
+<br>
+
+---
+
+1. What is wrong with this code?
+2. Legacy and modern fix
+
+```rust
+struct Point { x: i32, y: i32 }
+
+let optional_point: Option<Point> = Some(Point { x: 1, y: 2 });
+
+match optional_point {
+    Some(p) => println!("Coordinates are {},{}", p.x, p.y), 
+    _ => panic!("No match!"),
+}
+
+println!("{:?}", optional_point.is_some());
+```
+
+<details>
+<summary>Show legacy solution</summary>
+
+```rust
+struct Point { x: i32, y: i32 }
+
+let optional_point: Option<Point> = Some(Point { x: 1, y: 2 });
+
+match optional_point {
+    Some(ref p) => println!("Coordinates are {},{}", p.x, p.y), // p: &Point
+    _ => panic!("No match!"),
+}
+
+// optional_point is still valid here, because we only borrowed
+println!("{:?}", optional_point.is_some());
+```
+- legacy: `ref` - bind this pattern variable as reference to the matched place, don't move or copy it out.
+
+</details>
+
+<br>
+
+<details>
+<summary>Show modern solution</summary>
+
+```rust
+struct Point { x: i32, y: i32 }
+
+let optional_point: Option<Point> = Some(Point { x: 1, y: 2 });
+
+match &optional_point {
+    Some(p) => println!("Coordinates are {},{}", p.x, p.y), // p: &Point
+    _ => panic!("No match!"),
+}
+
+// optional_point is still valid here, because we only borrowed
+println!("{:?}", optional_point.is_some());
+```
+
+</details>
+<br>
 
 ---
 
