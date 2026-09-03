@@ -365,7 +365,7 @@ You can include line ranges or named "anchor" regions of a file too (`{{#include
 
 **c) Common third-party preprocessors for callouts/diagrams/math** (install each with `cargo install`, then add a `[preprocessor.X]` table to `book.toml`):
 
-- `mdbook-admonish` — styled callout boxes (`note`, `warning`, `tip`, etc.) via a fenced-code-like syntax. The most common choice for "beginner gotcha" or "hint" boxes in a lessons book.
+- [mdbook-admonish](https://github.com/tommilligan/mdbook-admonish) — styled callout boxes (`note`, `warning`, `tip`, etc.) via a fenced-code-like syntax. The most common choice for "beginner gotcha" or "hint" boxes in a lessons book.
 - `mdbook-mermaid` — Mermaid diagrams (flowcharts, sequence diagrams) rendered client-side.
 - `mdbook-katex` — LaTeX math rendering, if your notes ever need it.
 - `mdbook-toc` — auto-generates an in-page table of contents per chapter.
