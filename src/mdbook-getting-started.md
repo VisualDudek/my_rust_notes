@@ -365,12 +365,12 @@ You can include line ranges or named "anchor" regions of a file too (`{{#include
 
 **c) Common third-party preprocessors for callouts/diagrams/math** (install each with `cargo install`, then add a `[preprocessor.X]` table to `book.toml`):
 
-- [mdbook-admonish](https://github.com/tommilligan/mdbook-admonish) — styled callout boxes (`note`, `warning`, `tip`, etc.) via a fenced-code-like syntax. The most common choice for "beginner gotcha" or "hint" boxes in a lessons book.
+- [mdbook-admonish](https://github.com/tommilligan/mdbook-admonish) — **DO NOT USE IT, DOES NOT SUPPORT mdbook 0.5** — styled callout boxes (`note`, `warning`, `tip`, etc.) via a fenced-code-like syntax. The most common choice for "beginner gotcha" or "hint" boxes in a lessons book.
 - `mdbook-mermaid` — Mermaid diagrams (flowcharts, sequence diagrams) rendered client-side.
 - `mdbook-katex` — LaTeX math rendering, if your notes ever need it.
 - `mdbook-toc` — auto-generates an in-page table of contents per chapter.
 
-Given the 0.5.0 architecture change mentioned in §1, when picking any of these, check that the version you install declares support for mdBook 0.5's preprocessor API (most actively maintained ones have already migrated — `mdbook-admonish` and `mdbook-mermaid` both have compatible releases).
+Given the 0.5.0 architecture change mentioned in §1, when picking any of these, check that the version you install declares support for mdBook 0.5's preprocessor API (most actively maintained ones have already migrated — `mdbook-admonish` **NOPE** and `mdbook-mermaid` both have compatible releases).
 
 **d) A concrete Rustlings-mirroring layout**, combining everything above:
 
