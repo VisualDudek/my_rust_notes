@@ -182,7 +182,18 @@ Beyond highlighting, mdBook has several Rust-specific behaviors baked in that ar
   ```
   ````
 
+  ```rust,noplayground
+  let x = 5; // fragment, not meant to run standalone
+  ```
+
 **b) `editable` makes the code block an editable text area** (instead of read-only-but-runnable), which is the closer match to a Rustlings "fill in the blank and run it" exercise feel:
+
+In addition to providing runnable code playgrounds, mdBook optionally allows them to be editable. **In order to enable editable code blocks**, the following needs to be added to the book.toml:
+
+```toml
+[output.html.playground]
+editable = true
+```
 
 ````markdown
 ```rust,editable
@@ -194,6 +205,14 @@ fn main() {
 ```
 ````
 
+```rust,editable
+fn main() {
+    // TODO: fix this
+    let x: u32 = -1;
+    println!("{}", x);
+}
+```
+
 Combine with `ignore` if you don't want this snippet compiled during `mdbook test` (see below) because it's intentionally broken:
 
 ````markdown
@@ -203,6 +222,12 @@ fn broken() {
 }
 ```
 ````
+
+```rust,editable,ignore
+fn broken() {
+    this doesnt compile on purpose
+}
+```
 
 **c) Hidden lines, rustdoc-style.** Prefix a line with `# ` (hash + space) to hide it from the rendered book while still including it when the code is run/tested — exactly like rustdoc doc-tests. Great for hiding boilerplate (`fn main() { ... }` wrappers, imports) around a focused exercise snippet:
 
@@ -328,9 +353,13 @@ Rather than pasting Rust snippets into Markdown by hand (where they silently rot
 
 ````markdown
 ```rust
-{{#include ../../exercises/ownership/src/main.rs}}
+{{#include <PATH>../exercises/ownership/src/main.rs}}
 ```
 ````
+
+```rust
+{{#include ../exercises/ownership/src/main.rs}}
+```
 
 You can include line ranges or named "anchor" regions of a file too (`{{#include file.rs:10:20}}` or `{{#include file.rs:anchor_name}}`), which is the idiomatic way to keep a lesson's embedded snippet and a real, `cargo test`-able exercise crate as the *same source of truth*. This is exactly how The Rust Programming Language book itself keeps its code samples honest — every listing is `{{#include}}`d from a compiling project under `listings/`, not hand-copied.
 
