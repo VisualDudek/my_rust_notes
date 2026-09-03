@@ -308,17 +308,29 @@ fn main() {
 </details>
 ````
 
+<details>
+<summary>Show solution</summary>
+
+```rust
+fn main() {
+    let x: u32 = 1; // fixed
+    println!("{}", x);
+}
+```
+
+</details>
+
 This is genuinely the most common pattern in hand-rolled mdBook exercise sites, precisely because it needs no preprocessor and works in every browser.
 
 **b) `{{#include}}` for keeping exercise/solution code in sync with a real, compiling Cargo crate**
 
 Rather than pasting Rust snippets into Markdown by hand (where they silently rot), mdBook's built-in `links` preprocessor supports pulling in external files:
 
-```markdown
+````markdown
 ```rust
 {{#include ../../exercises/ownership/src/main.rs}}
 ```
-```
+````
 
 You can include line ranges or named "anchor" regions of a file too (`{{#include file.rs:10:20}}` or `{{#include file.rs:anchor_name}}`), which is the idiomatic way to keep a lesson's embedded snippet and a real, `cargo test`-able exercise crate as the *same source of truth*. This is exactly how The Rust Programming Language book itself keeps its code samples honest — every listing is `{{#include}}`d from a compiling project under `listings/`, not hand-copied.
 
