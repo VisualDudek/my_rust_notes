@@ -353,7 +353,7 @@ Rather than pasting Rust snippets into Markdown by hand (where they silently rot
 
 ````markdown
 ```rust
-{{#include <PATH>../exercises/ownership/src/main.rs}}
+\{{#include <PATH>../exercises/ownership/src/main.rs}}
 ```
 ````
 
@@ -361,7 +361,7 @@ Rather than pasting Rust snippets into Markdown by hand (where they silently rot
 {{#include ../exercises/ownership/src/main.rs}}
 ```
 
-You can include line ranges or named "anchor" regions of a file too (`{{#include file.rs:10:20}}` or `{{#include file.rs:anchor_name}}`), which is the idiomatic way to keep a lesson's embedded snippet and a real, `cargo test`-able exercise crate as the *same source of truth*. This is exactly how The Rust Programming Language book itself keeps its code samples honest — every listing is `{{#include}}`d from a compiling project under `listings/`, not hand-copied.
+You can include line ranges or named "anchor" regions of a file too (`\{{#include file.rs:10:20}}` or `{{#include file.rs:anchor_name}}`), which is the idiomatic way to keep a lesson's embedded snippet and a real, `cargo test`-able exercise crate as the *same source of truth*. This is exactly how The Rust Programming Language book itself keeps its code samples honest — every listing is `{{#include}}`d from a compiling project under `listings/`, not hand-copied.
 
 **c) Common third-party preprocessors for callouts/diagrams/math** (install each with `cargo install`, then add a `[preprocessor.X]` table to `book.toml`):
 
