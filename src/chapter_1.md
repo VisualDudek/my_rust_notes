@@ -149,3 +149,24 @@ println!("{:?}", optional_point.is_some());
 
 ---
 
+
+`Option<T>::as_ref()` / `Result<T, E>::as_ref()` — inherent methods that convert `Option<T> -> Option<&T>` (or `Result<T,E> -> Result<&T,&E>`) without consuming the original:
+
+```rust
+let name: Option<String> = Some(String::from("Marcin"));
+
+// Without as_ref, this would MOVE name.0 out
+if let Some(n) = name.as_ref() {
+    println!("{n}"); // n: &String
+}
+
+println!("{:?}", name); // still valid — we only borrowed
+```
+
+Both share a mental model: "**I own this, but I need to hand out a reference to it without giving up ownership.**" That's the whole idea — a controlled, non-consuming peek.
+
+Use-cases:
+1. inspecting without consuming, especially inside loop or before an early return
+2. peeking at an `Err` before propagating 
+
+I teraz wchodzi kluczowe pytanie: **czy `as_ref()` jest potrzebne, skoro mogę po prostu `if let Some(n) = &name`?** — ten sam rezultat:
