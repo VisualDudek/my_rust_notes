@@ -1,5 +1,7 @@
 # Chapter 1
 
+## `fold()`
+
 Przepisz na iterator chain
 ```rust
 pub fn ex9_word_frequency(text: &str) -> HashMap<String, u32> {
@@ -32,6 +34,8 @@ pub fn ex9_word_frequency(text: &str) -> HashMap<String, u32> {
 </details>
 
 ---
+
+## lazy iterators
 
 1. Dlaczego działa ale źle?
 ```rust
@@ -88,6 +92,8 @@ v.iter_mut().for_each(|x| *x *= 2);
 <br>
 
 ---
+
+## legacy `ref`
 
 1. What is wrong with this code?
 2. Legacy and modern fix
@@ -149,6 +155,7 @@ println!("{:?}", optional_point.is_some());
 
 ---
 
+## `as_ref()` for `Option` and `Result`
 
 `Option<T>::as_ref()` / `Result<T, E>::as_ref()` — inherent methods that convert `Option<T> -> Option<&T>` (or `Result<T,E> -> Result<&T,&E>`) without consuming the original:
 
@@ -193,6 +200,8 @@ if let Some(ref n) = name {
 - match ergonomics only kicks in inside **pattern matching** (`match`, `if let`, `while let`) contexts.
 
 ---
+
+## Early return with `Result`
 
 Chcesz wyskoczyć z funkcji na podstawie tylko jedngo "arm" w pattern mataching (albo konkretnie: propagować `Err` w `Result`)
 
@@ -251,6 +260,158 @@ Podejście #3 — early return with `?` operator IDOMATICALLY
 
     Ok(qty * cost_per_item + processing_fee)
 ```
+
+---
+
+## Usecase for `.map_err()`
+
+Usecase for `.map_err()`:
+
+
+**Job 1: Repackage one error into another shape**
+
+```rust
+.map_err(|e| format!("...{e}"))       // ParseIntError -> String
+.map_err(|e| MyError::Io(e))          // io::Error -> MyError
+.map_err(MyError::Io)                 // same, tuple-struct-as-fn shorthand
+```
+
+**Job 2: Funnel *several different* error types into *one* enum**
+
+This is where it gets useful at scale:
+
+```rust
+enum ConfigError {
+    Read(std::io::Error),
+    Parse(std::num::ParseIntError),
+}
+
+fn load(path: &str) -> Result<i32, ConfigError> {
+    let text = std::fs::read_to_string(path)
+        .map_err(ConfigError::Read)?;      // io::Error -> ConfigError
+
+    text.trim().parse::<i32>()
+        .map_err(ConfigError::Parse)?      // ParseIntError -> ConfigError
+}
+```
+
+Two completely different source error types (`io::Error`, `ParseIntError`) both land in the same `ConfigError` enum, each `.map_err()` call handling the conversion right where that specific error can occur. The `?` after each line then does the early-return.
+
+So: **`.map_err()` converts one `Result`'s error type at one call site.** "Several kinds of errors into one" is really *several `.map_err()` calls, each handling one source, all targeting the same destination enum* — not one `.map_err()` magically absorbing multiple types.
+
+The natural next step is realizing this gets repetitive — that's exactly the itch `impl From<io::Error> for ConfigError` (or `#[from]` in `thiserror`) scratches: it lets `?` alone do what `.map_err(ConfigError::Read)?` does here, since `?` auto-converts via `From` whenever it exists.
+
+---
+
+## follow up: `impl From` for automatic conversion
+
+follow up with `impl From` for automatic conversion with `?` operator.
+
+Here's the same `ConfigError` example, but letting `?` do the conversion via `From` instead of calling `.map_err()` everywhere.
+
+### Step 1: implement `From` for each source error
+
+```rust
+use std::fmt;
+
+#[derive(Debug)]
+enum ConfigError {
+    Read(std::io::Error),
+    Parse(std::num::ParseIntError),
+}
+
+impl From<std::io::Error> for ConfigError {
+    fn from(e: std::io::Error) -> Self {
+        ConfigError::Read(e)
+    }
+}
+
+impl From<std::num::ParseIntError> for ConfigError {
+    fn from(e: std::num::ParseIntError) -> Self {
+        ConfigError::Parse(e)
+    }
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigError::Read(e) => write!(f, "couldn't read config: {e}"),
+            ConfigError::Parse(e) => write!(f, "couldn't parse config: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for ConfigError {}
+```
+
+### Step 2: `?` alone now does the conversion
+
+```rust
+fn load(path: &str) -> Result<i32, ConfigError> {
+    let text = std::fs::read_to_string(path)?;  // io::Error -> ConfigError, automatically
+    let n = text.trim().parse::<i32>()?;         // ParseIntError -> ConfigError, automatically
+    Ok(n)
+}
+```
+
+No `.map_err()` in sight. Compare to what you had before:
+
+```rust
+// before
+let text = std::fs::read_to_string(path).map_err(ConfigError::Read)?;
+let n = text.trim().parse::<i32>().map_err(ConfigError::Parse)?;
+
+// after
+let text = std::fs::read_to_string(path)?;
+let n = text.trim().parse::<i32>()?;
+```
+
+### What's actually happening
+
+`?` desugars roughly to:
+
+```rust
+match std::fs::read_to_string(path) {
+    Ok(v) => v,
+    Err(e) => return Err(From::from(e)),
+}
+```
+
+That `From::from(e)` is the whole trick — `?` looks for a `From<SourceError> for TargetError` impl and calls it automatically whenever the error type doesn't already match the function's return type. You wrote the conversion logic once, in the `impl From` block, instead of at every call site.
+
+### Same thing, but with `thiserror`
+
+Writing `Display`, `Error`, and `From` by hand for every variant gets repetitive fast. `thiserror` generates all of it from attributes:
+
+```rust
+// Cargo.toml: thiserror = "1"
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+enum ConfigError {
+    #[error("couldn't read config: {0}")]
+    Read(#[from] std::io::Error),
+
+    #[error("couldn't parse config: {0}")]
+    Parse(#[from] std::num::ParseIntError),
+}
+
+fn load(path: &str) -> Result<i32, ConfigError> {
+    let text = std::fs::read_to_string(path)?;
+    let n = text.trim().parse::<i32>()?;
+    Ok(n)
+}
+```
+
+`#[from]` generates exactly the `impl From<...>` blocks you wrote by hand above. `#[error("...")]` generates the `Display` impl. Function body is identical either way — this is purely about not hand-writing boilerplate.
+
+### Mental model, updated
+
+- `.map_err(F::from)` / `.map_err(Variant)` — explicit, per-call-site conversion
+- `impl From<E> for MyError` — conversion logic defined once
+- `?` — automatically invokes that `From` impl at every call site, so you never call `.map_err()` for a conversion `From` already knows how to do
+
+`.map_err()` is still useful when the conversion *isn't* a clean `From` — e.g. you want to attach context that only exists at that call site (a filename, a line number) rather than a pure type-to-type mapping. That's the case `anyhow`'s `.context()` / `with_context()` is built for, if you want to see that next.
 
 ---
 
