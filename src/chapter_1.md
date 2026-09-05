@@ -75,7 +75,6 @@ fn main() {
 </details>
 
 <br>
-
 <details>
 <summary>Show final thoughts</summary>
 
@@ -414,4 +413,79 @@ fn load(path: &str) -> Result<i32, ConfigError> {
 `.map_err()` is still useful when the conversion *isn't* a clean `From` — e.g. you want to attach context that only exists at that call site (a filename, a line number) rather than a pure type-to-type mapping. That's the case `anyhow`'s `.context()` / `with_context()` is built for, if you want to see that next.
 
 ---
+
+## `if` or `let if` without `else` branch -> type
+
+Z czym tu jest problem i dlaczego?
+
+```rust
+pub fn first_word(s: &str) -> &str {
+    if let Some(n) = s.find(' ') {
+       &s[0..n]
+    } 
+    s
+}
+```
+
+<br>
+<details>
+<summary>Show solution</summary>
+
+An `if let` (or plain `if`) **without an `else` branch** is treated by the compiler as having an implicit `else { }`. Since that implicit else evaluates to `()`, the *then* branch must also evaluate to `()` for the two arms to unify to a single type — the same rule that governs a plain `if` without `else` used as an expression.
+
+So `&s[0..n]` as a tail expression (no semicolon) has type `&str`, but the compiler needs `()` — mismatch, hard error.
+
+```rust
+// Solution #1
+pub fn first_word(s: &str) -> &str {
+    if let Some(n) = s.find(' ') {
+       return &s[0..n];
+    } 
+    s
+}
+```
+
+<br>
+
+```rust
+// Solution #2
+pub fn first_word(s: &str) -> &str {
+    if let Some(n) = s.find(' ') {
+       &s[0..n]
+    } else {
+        s
+    }
+}
+```
+
+<br>
+
+```rust
+// Solution #3
+pub fn first_word(s: &str) -> &str {
+    match s.find(' ') {
+        Some(n) => &s[0..n],
+        None => s,
+    }
+}
+```
+<br>
+
+```rust
+// Solution #4
+pub fn first_word(s: &str) -> &str {
+    s.split(' ').next().unwrap_or(s)
+}
+```
+
+<br>
+
+```rust
+// Solution #5
+pub fn first_word(s: &str) -> &str {
+    s.find(' ').map_or(s, |n| &s[0..n])
+}
+```
+</details>
+<br>
 
