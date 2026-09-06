@@ -489,3 +489,254 @@ pub fn first_word(s: &str) -> &str {
 </details>
 <br>
 
+---
+
+## Iterator adapters
+
+Jak jest różnica:
+
+```rust
+fn ex6_double_all(numbers: &[i32]) -> Vec<i32> {
+    numbers.iter().map(|x| x * 2 ).collect()
+}
+```
+vs.
+```rust
+fn ex6_double_all(numbers: &[i32]) -> Vec<i32> {
+    numbers.iter().map(|x| x *= 2 ).collect()
+}
+```
+
+### Setup: what `x` actually is
+
+```rust
+fn ex6_double_all(numbers: &[i32]) -> Vec<i32> {
+    numbers.iter().map(|x| x * 2).collect()
+}
+```
+
+`numbers.iter()` yields `Item = &i32`. So in the closure, `x: &i32`.
+
+### Version 1: `x * 2` — works
+
+```rust
+numbers.iter().map(|x| x * 2).collect()
+```
+
+`*` here is **multiplication**, not dereference. The expression is `x * 2` where `x: &i32` and `2: i32`. This compiles because std provides forwarding impls like:
+
+```rust
+impl<'a> Mul<i32> for &'a i32 { type Output = i32; ... }
+```
+
+So `&i32 * i32 -> i32` works directly — no explicit `*x` needed, the trait impl handles the reference side. The closure returns `i32`, `map` produces `impl Iterator<Item = i32>`, and `collect()` builds `Vec<i32>`. Everything lines up with the return type.
+
+### Version 2: `x *= 2` — does **not** compile
+
+```rust
+numbers.iter().map(|x| x *= 2).collect()
+```
+
+Two separate problems here:
+
+**1. `x` isn't a mutable binding.** Closure parameters behave like `let` bindings — to reassign or mutate through `x`, the parameter needs to be `mut x`. As written, `x` is immutable, so any assignment through it is rejected immediately: `cannot assign to x, as it is not declared as mutable`.
+
+**2. Even with `mut x`, the semantics are wrong.** `x *= 2` (without a `*` prefix) means "reassign the binding `x`, calling `MulAssign::mul_assign` on `x` itself" — i.e. it wants `impl MulAssign<i32> for &i32`, treating the *reference* as the thing being multiplied. That impl doesn't exist in std (it wouldn't even make sense — multiplying a pointer by 2 isn't a rebinding operation Rust exposes this way). What you'd actually want is `*x *= 2`, which dereferences to the pointee place and calls `<i32 as MulAssign<i32>>::mul_assign(&mut *x, 2)` — but that additionally requires `x: &mut i32`, and `iter()` only gives you `&i32` (shared refs), so you'd need `iter_mut()` on a mutable slice for that to even type-check.
+
+**3. Return type mismatch.** `x *= 2` is an assignment expression, which evaluates to `()`, not `i32`. So even in a hypothetical world where the trait bound existed, the closure would return `()`, `map` would yield `impl Iterator<Item = ()>`, and `collect()` couldn't produce `Vec<i32>` — a type mismatch against the function's declared return type.
+
+### The idiomatic mental model
+
+| Goal | Correct approach |
+|---|---|
+| Compute a new value from a shared reference | `x * 2` (arithmetic ops are implemented for `&T` via forwarding impls) |
+| Mutate the underlying data in place | Need `&mut i32` (via `iter_mut()`), then `*x *= 2` |
+
+If you actually wanted to double the elements *in place* rather than produce a new `Vec`, the mutating version would look like:
+
+```rust
+fn ex6_double_all_in_place(numbers: &mut [i32]) {
+    numbers.iter_mut().for_each(|x| *x *= 2);
+}
+```
+
+Here `x: &mut i32`, and `*x *= 2` dereferences to the `i32` place and mutates it — `for_each` is used instead of `map`/`collect` because the closure now has a side effect and returns `()`, which is exactly what `for_each` expects.
+
+This is a nice bridge into your upcoming `iter_mut()` + `filter` topic — the double-reference gotcha (`&&T` in `filter` on `Iterator<Item = &T>`) has a mirror image here: with `iter_mut()`, your closures receive `&mut T`, and you always need the leading `*` to reach the pointee before applying a compound assignment operator.
+
+---
+
+## Can a Rust Slice Represent Filtered Data?
+
+I am thinking about an exercise like this:
+
+```rust
+fn ex7_middle_slice(numbers: &[i32]) -> &[i32] {
+    &numbers[1..numbers.len() - 1]
+}
+```
+
+Here, returning a slice works because the result refers to a contiguous region of the original input slice.
+
+But what if I wanted to return only the even numbers from `numbers`?
+
+My understanding is that returning `&[i32]` would not be possible in the general case. A slice is essentially a fat pointer consisting of a pointer to the first element and a length, so it can only describe a contiguous region of memory. Even numbers in the original slice may be located at non-contiguous addresses.
+
+For example:
+
+```text
+[1, 2, 3, 4, 5, 6]
+    ^     ^     ^
+```
+
+The values `2`, `4`, and `6` do not form one contiguous region in the original slice, so they cannot be represented as a single `&[i32]`.
+
+One alternative would be to return a filtered iterator, for example:
+
+```rust
+numbers.iter().filter(|&&x| x % 2 == 0)
+```
+
+However, an iterator is stateful and is consumed as it is iterated over, so it behaves differently from a reusable slice.
+
+What would be the idiomatic Rust solution here?
+
+Would you recommend:
+
+* returning an iterator,
+* allocating a new `Vec<i32>`,
+* returning a `Vec<&i32>`,
+* or using another approach?
+
+Your reasoning is exactly right, and it's a great instinct to check. A slice `&[i32]` is fundamentally a `(pointer, length)` pair into a **contiguous** region of memory. If the even numbers aren't contiguous in the original buffer, there's no way to describe "just the evens" with a single pointer+length — you'd need multiple disjoint ranges, which a slice cannot express.
+
+So `fn evens(numbers: &[i32]) -> &[i32]` is only satisfiable if you either get lucky (the evens already happen to be a contiguous run) or you physically **reorder** the underlying data so they become contiguous. That reordering insight is actually the key to one of the real solutions below.
+
+### Option 1 — In-place partition, return a real slice (zero allocation)
+
+If you're allowed to take `&mut [i32]` instead of `&[i32]`, you can *rearrange* the slice so all evens come first, then return a sub-slice of the front. This is the same idea behind `slice::partition_point` / quicksort's partition step, or `Vec::retain`'s swap-remove-like shuffling.
+
+```rust
+/// Reorders `numbers` so all even values come first (order not preserved),
+/// then returns a slice covering just those even values.
+fn partition_evens(numbers: &mut [i32]) -> &[i32] {
+    let mut write = 0;
+    for read in 0..numbers.len() {
+        if numbers[read] % 2 == 0 {
+            numbers.swap(write, read);
+            write += 1;
+        }
+    }
+    &numbers[..write]
+}
+```
+
+This is genuinely idiomatic for performance-sensitive code (it's basically what `Vec::retain` and the standard library's own partitioning routines do internally) — **zero heap allocation**, single pass, real slice semantics. The trade-off: it mutates the caller's data and doesn't preserve relative order of the evens (a stable partition would need either extra memory or a slower algorithm).
+
+If you need order preserved *and* in-place, that's a stable partition — doable but costs either O(n) extra space or a rotation-based algorithm (more advanced, not usually worth it unless order matters).
+
+### Option 2 — Return an owned `Vec<i32>` (simplest, most common)
+
+If contiguity isn't achievable or desirable, the standard move is to stop promising a slice and just hand back ownership of a new buffer:
+
+```rust
+fn evens(numbers: &[i32]) -> Vec<i32> {
+    numbers.iter().copied().filter(|n| n % 2 == 0).collect()
+}
+```
+
+This is what 90% of real-world Rust code does for "filter and give me the results" — allocation is cheap relative to the clarity you get, and `Vec<i32>` derefs to `&[i32]` anywhere a slice is expected via `Deref<Target = [i32]>`, so callers barely notice the difference.
+
+### Option 3 — Return a lazy iterator (zero allocation, but not a slice)
+
+If you don't need a concrete buffer at all — just something the caller can iterate — return `impl Iterator`:
+
+```rust
+fn evens(numbers: &[i32]) -> impl Iterator<Item = &i32> {
+    numbers.iter().filter(|n| **n % 2 == 0)
+}
+```
+
+You correctly flagged the trap here: an iterator is lazy and single-use — it doesn't "contain" values, it *produces* them once, on demand, via repeated `.next()` calls. That's not a downside so much as a different contract: this is perfect when the caller is going to consume it once anyway (e.g. `for x in evens(&data) { ... }` or `.sum()`), because you avoid ever materializing an intermediate buffer.
+
+### Recommendation
+
+| Goal | Choice |
+|---|---|
+| Learning exercise fidelity to "return a slice" | Option 1 (in-place partition) — this is the *only* way to honestly return `&[i32]` |
+| Real-world "give me the evens" utility | Option 2 (`Vec<i32>`) — simplest, most idiomatic, order-preserving |
+| Feeding into a `for` loop / another adapter chain, no buffer needed | Option 3 (`impl Iterator`) |
+
+For a rustlings-style exercise, Option 1 is the most pedagogically interesting because it forces you to confront *why* slices can't do arbitrary selection — and it's a nice bridge toward `Vec::retain`'s actual implementation, and later, `slice::sort_by`/partitioning algorithms, which use the exact same swap-based technique.
+
+Want me to write this up as a full exercise/solution pair (with `#[cfg(test)]` blocks) for your workspace — maybe including both the mutating in-place version and the `Vec`-returning version so the contrast is explicit?
+
+---
+
+## Follow-up - `Vec<&T>` for Filtered Data
+
+Yes — exactly, and this is one of the most common real-world patterns in Rust. When `T` is heavy (a struct with `String`, `Vec`, or other owned data), you almost never want `Vec<T>` from a filter operation, because that clones every matching struct. Instead, `Vec<&T>` gives you a collection of *pointers* into the original data — no struct is copied, only the (small, fixed-size) references are stored.
+
+### The core pattern
+
+```rust
+struct Employee {
+    name: String,
+    department: String,
+    salary: f64,
+    notes: String, // imagine this is a big blob of text
+}
+
+fn high_earners(employees: &[Employee]) -> Vec<&Employee> {
+    employees.iter().filter(|e| e.salary > 100_000.0).collect()
+}
+```
+
+Here's the important nuance about "saving heap allocation": you're not eliminating *all* allocation — the `Vec<&Employee>` itself still needs a heap buffer to hold the references. What you're eliminating is allocation *of the heavy data*. A `&Employee` is just a pointer (8 bytes on 64-bit), regardless of how large `Employee` is. So instead of copying potentially kilobytes of `String` data per match, you're copying an 8-byte pointer per match. That's the win.
+
+### Why this compiles without explicit lifetime annotations
+
+You might expect to need to write out lifetimes here, but elision handles it:
+
+```rust
+fn high_earners<'a>(employees: &'a [Employee]) -> Vec<&'a Employee> {
+    employees.iter().filter(|e| e.salary > 100_000.0).collect()
+}
+```
+
+These two signatures are identical after elision — the compiler applies the rule "one input lifetime → assign it to all elided output lifetimes." The returned references borrow from `employees`, so the borrow checker ties the `Vec<&Employee>`'s validity to the lifetime of the slice you passed in. This is the same mechanism that makes `fn first(s: &[i32]) -> &i32` work without explicit annotation.
+
+### The caveat: you now have a borrow, not an owned value
+
+This is the trade-off that matters most:
+
+```rust
+fn main() {
+    let employees = vec![/* ... */];
+    let earners = high_earners(&employees);
+    
+    // employees is still borrowed here — earners holds &Employee into it
+    // employees.push(...) // ERROR: cannot borrow `employees` as mutable
+    //                       because it's also borrowed as immutable
+    
+    println!("{}", earners[0].name);
+} // earners drops, then employees can be freed
+```
+
+`Vec<&Employee>` can't outlive `employees`, and you can't mutate `employees` while `earners` is alive (that's the aliasing XOR mutability invariant you already know from `&T`/`&mut T`). If you need the filtered results to outlive the source, or to mutate the source afterward, you're back to needing owned data — either `Vec<Employee>` (full clones) or `Vec<Rc<Employee>>` / `Arc<Employee>` if shared ownership across scopes is the actual requirement.
+
+### Comparison table
+
+| Return type | Heap cost | Lifetime tied to input? | Use when |
+|---|---|---|---|
+| `Vec<T>` | Clones every matched `T` | No | Need fully independent, owned results |
+| `Vec<&T>` | Just pointers (Vec's own buffer) | Yes | Read-only access, input outlives usage |
+| `Vec<Rc<T>>` / `Vec<Arc<T>>` | Shared ownership, refcount bump | No | Need independence but sharing is fine, no mutation |
+| `impl Iterator<Item = &T>` | Zero — nothing materialized | Yes | Single consume, no need to store results |
+
+### Natural next step
+
+This pattern — filtering into references instead of clones — is exactly the motivation behind `Cow<'a, T>`, which is next on your list: `Cow` lets a function return "borrowed if possible, owned if a mutation is actually needed," so you get the zero-cost path in the common case and only pay for a clone when unavoidable. Want to see how `Cow` would apply if, say, some of your `high_earners` needed a computed/normalized field instead of a raw reference?
+
+---
+
