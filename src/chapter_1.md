@@ -565,3 +565,22 @@ Here `x: &mut i32`, and `*x *= 2` dereferences to the `i32` place and mutates it
 This is a nice bridge into your upcoming `iter_mut()` + `filter` topic — the double-reference gotcha (`&&T` in `filter` on `Iterator<Item = &T>`) has a mirror image here: with `iter_mut()`, your closures receive `&mut T`, and you always need the leading `*` to reach the pointee before applying a compound assignment operator.
 
 ---
+
+## *place expressions*
+
+```rust
+    pub fn title(&self) -> String {
+        self.title
+    }
+```
+
+self has type `&Self` (i.e. `&YourStruct`). `self.title` is a *place expression* — Rust automatically dereferences self to reach the field, so `self.title` means `(*self).title` under the hood. You never have to write the deref explicitly because field access on a reference auto-derefs.
+
+
+```rust
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+```
+
+That place has type `String` (whatever title is declared as on the struct). Prefixing it with `&` takes a reference to that place — not a copy, not a move — producing a value of type `&String`. Mechanically this is just "address of the title field inside the struct that self points to." Rust will then automatically coerce `&String` to `&str` because of the `Deref` implementation on `String`.
