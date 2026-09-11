@@ -12,6 +12,7 @@
     - [follow up Deref Mental Model](./ch1/Deref_mental_model.md)
     - [Autoderef/Autoref in Method Resolution](./ch1/autoderef_autoref_in_method_resolution.md)
     - [Follow up: Autoderef/Autoref in Method Resolution](./ch1/follow_up_autoderef_1.md)
+    - [Trait associated type - notes](./ch1/assoc_type.md)
     - [mock]()
 - [Coming Soon]()
 
