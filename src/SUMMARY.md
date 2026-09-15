@@ -14,6 +14,7 @@
     - [Follow up: Autoderef/Autoref in Method Resolution](./ch1/follow_up_autoderef_1.md)
     - [Trait associated type - notes](./ch1/assoc_type.md)
     - [Is Even generic function](./ch1/is_even_generic_fn.md)
+    - [`impl` generic From Trait](./ch1/impl_generic_from.md)
     - [mock]()
 - [Coming Soon]()
 
