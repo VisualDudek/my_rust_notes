@@ -584,3 +584,59 @@ self has type `&Self` (i.e. `&YourStruct`). `self.title` is a *place expression*
 ```
 
 That place has type `String` (whatever title is declared as on the struct). Prefixing it with `&` takes a reference to that place — not a copy, not a move — producing a value of type `&String`. Mechanically this is just "address of the title field inside the struct that self points to." Rust will then automatically coerce `&String` to `&str` because of the `Deref` implementation on `String`.
+
+## `if let` mental model
+
+Mental model of `if let`: it's a convenient way to handle just one variant of an enum (or one pattern of any type) without writing a full `match` statement. BC `match` requires exhaustive handling of all possible cases, `if let` provides a shorthand for the common scenario where you only care about one specific pattern and want to ignore the rest.
+
+Yes — that's exactly right, and it's worth being precise about the mechanism.
+
+`match` requires every arm together to cover all possible values of the scrutinee's type (exhaustiveness is checked at compile time). `if let` is sugar for a `match` with exactly one pattern arm plus an implicit `_ => {}` catch-all — so it only needs to handle the *refutable* case you care about, and silently does nothing (or falls through to `else`) otherwise.
+
+```rust
+let maybe_num: Option<i32> = Some(4);
+
+// Sugar:
+if let Some(n) = maybe_num {
+    println!("got {n}");
+}
+
+// Desugars to:
+match maybe_num {
+    Some(n) => println!("got {n}"),
+    _ => (),
+}
+```
+
+Key mechanistic points:
+
+- **Refutability**: `if let`'s pattern must be *refutable* (can fail to match) — that's the whole point. A pattern that's *irrefutable* (like a plain `let x = 5;` binding) doesn't need `if`/`match` at all, since it always succeeds. Using `if let` with an irrefutable pattern is a Clippy lint (`if_let_useless` territory) since it's pointless ceremony.
+- **`else` branch**: you get the catch-all back explicitly if you want it:
+  ```rust
+  if let Some(n) = maybe_num {
+      println!("got {n}");
+  } else {
+      println!("nothing");
+  }
+  ```
+  which desugars to the `_ => { ... }` arm instead of `_ => ()`.
+- **Binding scope**: like `match`, the bound variables (`n` here) are only in scope inside the matched arm — this is just normal pattern-binding scoping, not an `if let`-specific rule.
+- **No fallthrough to other variants**: this is the actual cost of non-exhaustiveness — if `Option<i32>` grew a third variant tomorrow (it won't, but imagine a custom enum), `if let` wouldn't warn you that a case is silently ignored. `match` would force you to handle it. This is why `if let` is idiomatic for "I only care about one variant, ignore the rest" and `match` is idiomatic when you want the compiler to hold you accountable for every case.
+
+Related sugar you'll want in the same mental bucket, since you've already got the never-type/divergence model:
+
+- **`let else`**: inverts the polarity — binds in the *success* path at the enclosing scope, and the `else` block must diverge (`return`, `break`, `panic!`, `continue`):
+  ```rust
+  let Some(n) = maybe_num else {
+      return; // must be `!`
+  };
+  // `n` is in scope here, not just inside a block
+  ```
+- **`while let`**: same one-arm-plus-wildcard idea, but loops as long as the pattern keeps matching — classic for draining an iterator or channel:
+  ```rust
+  while let Some(item) = stack.pop() {
+      println!("{item}");
+  }
+  ```
+
+Natural next step given where you are: look at how `matches!(expr, pattern)` compiles down to the same `match ... { pattern => true, _ => false }` shape — it's the same non-exhaustive-arm-plus-wildcard trick applied to boolean-producing contexts, and Clippy's `match_like_matches_macro` (which you already flagged in your tooling notes) exists specifically to catch hand-written `match`es that should be this macro instead.
