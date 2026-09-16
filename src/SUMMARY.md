@@ -16,6 +16,7 @@
     - [Trait associated type - notes](./ch1/assoc_type.md)
     - [Is Even generic function](./ch1/is_even_generic_fn.md)
     - [`impl` generic From Trait](./ch1/impl_generic_from.md)
+    - [Idiomatic `From` Trait Implementations](./ch1/idiomatic_From_trait.md)
     - [mock]()
 - [Coming Soon]()
 
