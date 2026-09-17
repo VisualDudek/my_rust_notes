@@ -414,7 +414,7 @@ fn load(path: &str) -> Result<i32, ConfigError> {
 
 ---
 
-## `if` or `let if` without `else` branch -> type
+## `if` or `if let` without `else` branch -> type
 
 Z czym tu jest problem i dlaczego?
 
