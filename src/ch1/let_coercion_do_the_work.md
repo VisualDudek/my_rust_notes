@@ -34,6 +34,8 @@ match &*owned {
 let s = &*owned;              // explicit: "I mean str, via Deref, not some other candidate"
 ```
 
+> Match/pattern position doesn't trigger coercion, so you need `&*x` there.
+
 **Mental anchor:** `&*x` is the *desugared* form of what coercion does silently — same runtime effect, but written by hand because the compiler needs a nudge (no coercion site, generic bound, or pattern context) rather than a hint (concrete `let`/arg type).
 
 ---
