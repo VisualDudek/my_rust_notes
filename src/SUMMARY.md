@@ -19,6 +19,7 @@
     - [Idiomatic `From` Trait Implementations](./ch1/idiomatic_From_trait.md)
     - [`&x` vs `&*x` (let coercion do the work)](./ch1/let_coercion_do_the_work.md)
     - [Where `&String` Points](./ch1/where_ref_String_points.md)
+    - [Match Ergonomics](./ch1/match_ergonomics.md)
     - [mock]()
 - [Coming Soon]()
 
