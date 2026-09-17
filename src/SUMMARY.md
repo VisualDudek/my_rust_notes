@@ -14,6 +14,7 @@
     - [Follow up: Autoderef/Autoref in Method Resolution](./ch1/follow_up_autoderef_1.md)
     - [Associated type mental model](./ch1/assoc_type_mental_model.md)
     - [Trait associated type - notes](./ch1/assoc_type.md)
+    - [Use Case for Associated `Output`](./ch1/usecase_for_assoc_Output.md)
     - [Is Even generic function](./ch1/is_even_generic_fn.md)
     - [`impl` generic From Trait](./ch1/impl_generic_from.md)
     - [Idiomatic `From` Trait Implementations](./ch1/idiomatic_From_trait.md)
