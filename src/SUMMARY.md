@@ -21,6 +21,8 @@
     - [`&x` vs `&*x` (let coercion do the work)](./ch1/let_coercion_do_the_work.md)
     - [Where `&String` Points](./ch1/where_ref_String_points.md)
     - [Match Ergonomics](./ch1/match_ergonomics.md)
+    - [Mental Model: `TryFrom` that can fail](./ch1/mental_model_TryFrom.md)
+    - [Basics of `Error::source()`](./ch1/basics_of_error_source.md)
     - [mock]()
 - [Coming Soon]()
 
