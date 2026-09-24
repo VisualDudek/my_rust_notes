@@ -24,6 +24,11 @@
     - [Mental Model: `TryFrom` that can fail](./ch1/mental_model_TryFrom.md)
     - [Basics of `Error::source()`](./ch1/basics_of_error_source.md)
     - [mock]()
+- [Chapter 2]()
+    - [The `Rc` Type Explained for a 5-Year-Old](./ch2/explain_5yo_Rc.md)
+    - [`Rc` vs Standard Ownership in Rust](./ch2/Rc_vs_standard_ownership.md)
+    - [The `RefCell` Type Explained for a 5-Year-Old](./ch2/explain_5yo_RefCell.md)
+    - [`Rc` + `RefCell` Pattern](./ch2/pattern_Rc_RefCell.md)
 - [Coming Soon]()
 
 # Other
