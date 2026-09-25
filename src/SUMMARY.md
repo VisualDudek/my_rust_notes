@@ -23,6 +23,7 @@
     - [Match Ergonomics](./ch1/match_ergonomics.md)
     - [Mental Model: `TryFrom` that can fail](./ch1/mental_model_TryFrom.md)
     - [Basics of `Error::source()`](./ch1/basics_of_error_source.md)
+    - [Closure passed to `filter` takes a reference](./ch1/closure_filter_take_ref.md)
     - [mock]()
 - [Chapter 2]()
     - [The `Rc` Type Explained for a 5-Year-Old](./ch2/explain_5yo_Rc.md)
